@@ -26,8 +26,7 @@ std::string hasData(std::string s) {
   return "";
 }
 
-int main()
-{
+int main() {
   uWS::Hub h;
 
   // Create a Kalman Filter instance
@@ -43,9 +42,7 @@ int main()
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
 
-    if (length && length > 2 && data[0] == '4' && data[1] == '2')
-    {
-
+    if (length && length > 2 && data[0] == '4' && data[1] == '2') {
       auto s = hasData(std::string(data));
       if (s != "") {
       	
@@ -55,7 +52,6 @@ int main()
         
         if (event == "telemetry") {
           // j[1] is the data JSON object
-          
           string sensor_measurment = j[1]["sensor_measurement"];
           
           MeasurementPackage meas_package;
@@ -77,7 +73,6 @@ int main()
           		iss >> timestamp;
           		meas_package.timestamp_ = timestamp;
           } else if (sensor_type.compare("R") == 0) {
-
       	  		meas_package.sensor_type_ = MeasurementPackage::RADAR;
           		meas_package.raw_measurements_ = VectorXd(3);
           		float ro;
@@ -90,6 +85,7 @@ int main()
           		iss >> timestamp;
           		meas_package.timestamp_ = timestamp;
           }
+            
           float x_gt;
     	  float y_gt;
     	  float vx_gt;
@@ -109,7 +105,6 @@ int main()
     	  ukf.ProcessMeasurement(meas_package);    	  
 
     	  //Push the current estimated x,y positon from the Kalman filter's state vector
-
     	  VectorXd estimate(4);
 
     	  double p_x = ukf.x_(0);
@@ -142,24 +137,19 @@ int main()
 	  
         }
       } else {
-        
         std::string msg = "42[\"manual\",{}]";
         ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
       }
     }
-
   });
 
   // We don't need this since we're not using HTTP but if it's removed the program
   // doesn't compile :-(
   h.onHttpRequest([](uWS::HttpResponse *res, uWS::HttpRequest req, char *data, size_t, size_t) {
     const std::string s = "<h1>Hello world!</h1>";
-    if (req.getUrl().valueLength == 1)
-    {
+    if (req.getUrl().valueLength == 1) {
       res->end(s.data(), s.length());
-    }
-    else
-    {
+    } else {
       // i guess this should be done more gracefully?
       res->end(nullptr, 0);
     }
@@ -175,101 +165,13 @@ int main()
   });
 
   int port = 4567;
-  if (h.listen(port))
-  {
+  if (h.listen(port)) {
     std::cout << "Listening to port " << port << std::endl;
-  }
-  else
-  {
+  } else {
     std::cerr << "Failed to listen to port" << std::endl;
     return -1;
   }
+    
   h.run();
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
