@@ -7,7 +7,7 @@
 
 using namespace std;
 
-// for convenience
+// For convenience
 using json = nlohmann::json;
 
 /**
@@ -34,7 +34,7 @@ int main() {
   // Create a Kalman Filter instance
   UKF ukf;
   
-  // used to compute the RMSE later
+  // Used to compute the RMSE later
   Tools tools;
   vector<VectorXd> estimations;
   vector<VectorXd> ground_truth;
@@ -59,7 +59,7 @@ int main() {
           istringstream iss(sensor_measurment);
           long long timestamp;
           
-          // reads first element from the current line
+          // Reads first element from the current line
           string sensor_type;
           iss >> sensor_type;
           

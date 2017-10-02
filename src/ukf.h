@@ -67,7 +67,6 @@ public:
   ///* Sigma point spreading parameter
   double lambda_;
 
-
   /**
    * Constructor
    */
@@ -79,11 +78,19 @@ public:
   virtual ~UKF();
 
   /**
+   * Initialize
+   * Performs the imitialization of the filter on the first measurement that
+   * is received from either the radar or the lidar
+   * @param meas_package The latest measurement data of either radar or laser
+   */
+  void Initialize(MeasurementPackage meas_package);
+  
+  /**
    * ProcessMeasurement
    * @param meas_package The latest measurement data of either radar or laser
    */
   void ProcessMeasurement(MeasurementPackage meas_package);
-
+  
   /**
    * Prediction Predicts sigma points, the state, and the state covariance
    * matrix
@@ -91,6 +98,12 @@ public:
    */
   void Prediction(double delta_t);
 
+  /**
+   * UpdateHandler defines the sensor that will be used for the update step
+   * @param meas_package The latest measurement data of either radar or laser
+   */
+  void UpdateHandler(MeasurementPackage meas_package);
+  
   /**
    * Updates the state and the state covariance matrix using a laser measurement
    * @param meas_package The measurement at k+1
