@@ -13,6 +13,9 @@ using std::vector;
  * Initializes Unscented Kalman filter
  */
 UKF::UKF() {
+  // Begin with the filter in not initialized phase
+  is_initialized_ = false;
+  
   // If this is false, laser measurements will be ignored (except during init)
   use_laser_ = true;
 
@@ -92,8 +95,7 @@ void UKF::Initialize(MeasurementPackage meas_package) {
   
   // Initialize the filter depending on the sensor that sent the
   // measurement (radar or lidar)
-  if (meas_package.sensor_type_ == MeasurementPackage::RADAR &&
-      use_radar_) {
+  if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
     // Get the radar measurements from the pack: [ρ, φ, ρ']
     float rho = meas_package.raw_measurements_[0];      // ρ
     float phi = meas_package.raw_measurements_[1];      // φ
@@ -110,8 +112,7 @@ void UKF::Initialize(MeasurementPackage meas_package) {
     // Initialize only on the very first measurement
     if (DEBUG) { cout << "Radar initialization measurement" << endl; }
     
-  } else if (meas_package.sensor_type_ == MeasurementPackage::LASER &&
-             use_laser_) {
+  } else if (meas_package.sensor_type_ == MeasurementPackage::LASER) {
     // Get the location coordinates from the pack
     // Note: lidar does not provide velocity measurements at all
     float px = meas_package.raw_measurements_[0];
@@ -156,7 +157,6 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
     // Compute the time elapsed between the current and previous measurements
     // dt is expressed in seconds where the pack provides msecs
     float dt = (meas_package.timestamp_ - time_us_) / MSEC_TO_SEC;
-    if (DEBUG) { cout << "dt = " << dt << endl; }
     
     // Update the previous timestamp with the measurement timestamp
     time_us_ = meas_package.timestamp_;
@@ -199,16 +199,19 @@ void UKF::Prediction(double delta_t) {
   // Sigma point matrix
   MatrixXd Xsig_aug = MatrixXd(n_aug_, 2 * n_aug_ + 1);
   
-  // Augmented mean state
+  if (DEBUG) { cout << " x_ : " << x_.rows() << " x " << x_.cols() << endl; }
+  if (DEBUG) {
+    cout << " x_aug : " << x_aug.rows() << " x " << x_aug.cols() << endl;
+  }
+  if (DEBUG) {
+    cout << " P_aug : " << P_aug.rows() << " x " << P_aug.cols() << endl;
+  }
   
-  // TODO: FIX
-  //*************************************************************
+  // Augmented mean state
+  x_aug.fill(0.0);
   if (DEBUG) { cout << " -> UKF::Prediction -- 1" << endl; }
-  x_aug.head(5) = x_;
+  x_aug.head(n_x_) = x_;
   if (DEBUG) { cout << " -> UKF::Prediction -- 2" << endl; }
-  //*************************************************************
-  x_aug(5) = 0;
-  x_aug(6) = 0;
   
   // Q matrix
   MatrixXd Q(2, 2);
