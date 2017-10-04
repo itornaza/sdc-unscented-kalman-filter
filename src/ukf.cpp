@@ -80,6 +80,8 @@ UKF::~UKF() {}
  * either radar or laser.
  */
 void UKF::Initialize(MeasurementPackage meas_package) {
+  if (DEBUG) { cout << " -> UKF::Initialize()" << endl; }
+  
   // The 5 state vector's elements for the CTRV model
   // x = [px, py, v, ψ, ψ']
   float px = 0;
@@ -141,6 +143,8 @@ void UKF::Initialize(MeasurementPackage meas_package) {
  * either radar or laser.
  */
 void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
+  if (DEBUG) { cout << " -> UKF::ProcessMeasurement()" << endl; }
+  
   // Distinguish between a first or a subsequent measurement
   if (!is_initialized_) {
     //-----------------
@@ -152,6 +156,7 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
     // Compute the time elapsed between the current and previous measurements
     // dt is expressed in seconds where the pack provides msecs
     float dt = (meas_package.timestamp_ - time_us_) / MSEC_TO_SEC;
+    if (DEBUG) { cout << "dt = " << dt << endl; }
     
     // Update the previous timestamp with the measurement timestamp
     time_us_ = meas_package.timestamp_;
@@ -180,7 +185,8 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
  * measurement and this one.
  */
 void UKF::Prediction(double delta_t) {
-  // Local variables
+  if (DEBUG) { cout << " -> UKF::Prediction()" << endl; }
+  
   double dt = delta_t;
   double dt_2 = delta_t * delta_t;
   
@@ -194,7 +200,13 @@ void UKF::Prediction(double delta_t) {
   MatrixXd Xsig_aug = MatrixXd(n_aug_, 2 * n_aug_ + 1);
   
   // Augmented mean state
+  
+  // TODO: FIX
+  //*************************************************************
+  if (DEBUG) { cout << " -> UKF::Prediction -- 1" << endl; }
   x_aug.head(5) = x_;
+  if (DEBUG) { cout << " -> UKF::Prediction -- 2" << endl; }
+  //*************************************************************
   x_aug(5) = 0;
   x_aug(6) = 0;
   
@@ -266,9 +278,11 @@ void UKF::Prediction(double delta_t) {
   P_.fill(0.0);
   for (int ix = 0; ix < (2 * n_aug_ + 1); ++ix) {
     VectorXd x_diff = Xsig_pred_.col(ix) - x_;
+    
     // TODO: Replace with the Tools:normalizeAngle method
     while (x_diff(3) > M_PI) { x_diff(3) -= 2.0 * M_PI; }
     while (x_diff(3) < -M_PI) { x_diff(3) += 2.0 * M_PI; }
+    
     P_ += weights_(ix) * x_diff * x_diff.transpose();
   }
 }
@@ -278,6 +292,8 @@ void UKF::Prediction(double delta_t) {
  * @param {MeasurementPackage} meas_package
  */
 void UKF::UpdateHandler(MeasurementPackage meas_package){
+  if (DEBUG) { cout << " ==> UKF::UpdateHandler()" << endl; }
+  
   // Update the filter with the appropriate sensor equations
   if (meas_package.sensor_type_ == MeasurementPackage::RADAR &&
       use_radar_) {
@@ -304,6 +320,7 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
 
   You'll also need to calculate the lidar NIS.
   */
+  if (DEBUG) { cout << " -> UKF::UpdateLidar()" << endl; }
 }
 
 /**
@@ -319,4 +336,116 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
 
   You'll also need to calculate the radar NIS.
   */
+  if (DEBUG) { cout << " -> UKF::UpdateRadar()" << endl; }
+  
+  //-----------------------------------
+  // Update Step 1: Predict measurement
+  //-----------------------------------
+
+  // Measurement dimension, radar can measure r, phi, and r_dot
+  int n_z = 3;
+  
+  // Matrix for sigma points in measurement space
+  MatrixXd Zsig = MatrixXd(n_z, 2 * n_aug_ + 1);
+  
+  // Mean predicted measurement
+  VectorXd z_pred = VectorXd(n_z);
+  
+  // Measurement covariance matrix S
+  MatrixXd S = MatrixXd(n_z, n_z);
+  
+  // Transform sigma points into measurement space
+  for (int ix = 0; ix < (2 * n_aug_ + 1); ++ix) {
+    // Get the state vector elements
+    double px = Xsig_pred_(0, ix);
+    double py = Xsig_pred_(1, ix);
+    double v = Xsig_pred_(2, ix);
+    double psi = Xsig_pred_(3, ix);
+    double psi_d = Xsig_pred_(4, ix);
+    
+    // Convenience variables
+    double px_2 = px * px;
+    double py_2 = py * py;
+    
+    // Divisions by zero
+    if (fabs(px) < E1) {
+      px = E1;
+    }
+    if (fabs(py) < E1) {
+      py = E1;
+    }
+    
+    // Assign the ρ, φ, ρ' to the Zsig matrix column
+    Zsig(0, ix) = sqrt(px_2 + py_2);
+    Zsig(1, ix) = atan2(py, px);
+    Zsig(2, ix) = (px * v * cos(psi) + py * v * sin(psi)) / sqrt(px_2 + py_2);
+  }
+  
+  // Calculate mean predicted measurement
+  z_pred.fill(0.0);
+  for (int ix = 0; ix < (2 * n_aug_ + 1); ++ix) {
+    z_pred += weights_(ix) * Zsig.col(ix);
+  }
+  
+  // Calculate measurement covariance matrix S
+  S.fill(0.0);
+  for (int ix = 0; ix < (2 * n_aug_ + 1); ++ix) {
+    VectorXd z_diff = Zsig.col(ix) - z_pred;
+    
+    // Angle normalization
+    while (z_diff(1) > M_PI) { z_diff(1) -=2.0 * M_PI; }
+    while (z_diff(1) < -M_PI) { z_diff(1) +=2.0 * M_PI; }
+    
+    S += weights_(ix) * z_diff * z_diff.transpose();
+  }
+  
+  // Add the measurement covariance matrix R to the S matrix
+  MatrixXd R = MatrixXd(n_z, n_z);
+  R.fill(0.0);
+  
+  // Set up the diagonal with the standard deviations
+  R(0, 0) = std_radr_ * std_radr_;
+  R(1, 1) = std_radphi_ * std_radphi_;
+  R(2, 2) = std_radrd_ * std_radrd_;
+  
+  // Add to the predicted covariance
+  S += R;
+  
+  //-----------------------------------
+  // Update step 2: Update state
+  //-----------------------------------
+  
+  // The current sensor measurement
+  VectorXd z = meas_package.raw_measurements_;
+  
+  // Correlation matrix
+  MatrixXd Tc = MatrixXd(n_x_, n_z);
+  
+  // Cross correlation matrix
+  Tc.fill(0.0);
+  for (int i = 0; i < 2 * n_aug_ + 1; i++) {  //2n+1 simga points
+    // State difference and angle normalization
+    VectorXd x_diff = Xsig_pred_.col(i) - x_;
+    while (x_diff(3) > M_PI) { x_diff(3) -= 2.0 * M_PI; } // 3 for psi
+    while (x_diff(3) < -M_PI) { x_diff(3) += 2.0 * M_PI; }
+    
+    // Measurement difference and angle normalization
+    VectorXd z_diff = Zsig.col(i) - z_pred;
+    while (z_diff(1) > M_PI) { z_diff(1) -= 2.0 * M_PI; } // 1 for phi
+    while (z_diff(1) < -M_PI) { z_diff(1) += 2.0 * M_PI; }
+    
+    Tc += weights_(i) * x_diff * z_diff.transpose();
+  }
+  
+  // Kalman gain K
+  MatrixXd K = Tc * S.inverse();
+  
+  // Measurement difference and angle normalization
+  VectorXd z_diff = z - z_pred;
+  while (z_diff(1) > M_PI) { z_diff(1) -= 2.0 * M_PI; }  // 1 for phi
+  while (z_diff(1) < -M_PI) { z_diff(1) += 2.0 * M_PI; }
+  
+  // Update state mean and covariance matrices
+  x_ += K * z_diff;
+  P_ -= K * S * K.transpose();
 }
