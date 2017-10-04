@@ -13,16 +13,16 @@ using std::vector;
  * Initializes Unscented Kalman filter
  */
 UKF::UKF() {
-  // if this is false, laser measurements will be ignored (except during init)
+  // If this is false, laser measurements will be ignored (except during init)
   use_laser_ = true;
 
-  // if this is false, radar measurements will be ignored (except during init)
+  // If this is false, radar measurements will be ignored (except during init)
   use_radar_ = true;
 
-  // initial state vector
+  // Initial state vector
   x_ = VectorXd(5);
 
-  // initial covariance matrix
+  // Initial covariance matrix
   P_ = MatrixXd(5, 5);
   P_ << 1, 0, 0, 0, 0,
         0, 1, 0, 0, 0,
@@ -30,6 +30,9 @@ UKF::UKF() {
         0, 0, 0, 1, 0,
         0, 0, 0, 0, 1;
 
+  // Initialize predicted sigma points matrix
+  Xsig_pred_ = MatrixXd(n_x_, 2 * n_aug_ + 1);
+  
   // Process noise standard deviation longitudinal acceleration in m/s^2
   std_a_ = 30;
 
@@ -62,11 +65,11 @@ UKF::UKF() {
   
   // Set vector for weights
   VectorXd weights_ = VectorXd(2 * n_aug_ + 1);
-  double weight_0 = lambda_ / (lambda_ + n_aug_);
-  weights_(0) = weight_0;
-  for (int ix = 1; ix < (2 * n_aug_ + 1); ix++) {  //2n+1 weights
-    double weight = 0.5 / (n_aug_ + lambda_);
-    weights_(ix) = weight;
+  
+  // Initialize the weights
+  weights_(0) = lambda_ / (lambda_ + n_aug_);
+  for (int ix = 1; ix < (2 * n_aug_ + 1); ++ix) {
+    weights_(ix) = 1.0 / (2.0 * (lambda_ + n_aug_));
   }
 }
 
@@ -177,12 +180,97 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
  * measurement and this one.
  */
 void UKF::Prediction(double delta_t) {
-  /**
-  TODO:
-
-  Complete this function! Estimate the object's location. Modify the state
-  vector, x_. Predict sigma points, the state, and the state covariance matrix.
-  */
+  // Local variables
+  double dt = delta_t;
+  double dt_2 = delta_t * delta_t;
+  
+  // Augmented mean vector
+  VectorXd x_aug = VectorXd(n_aug_);
+  
+  // Augmented state covariance
+  MatrixXd P_aug = MatrixXd(n_aug_, n_aug_);
+  
+  // Sigma point matrix
+  MatrixXd Xsig_aug = MatrixXd(n_aug_, 2 * n_aug_ + 1);
+  
+  // Augmented mean state
+  x_aug.head(5) = x_;
+  x_aug(5) = 0;
+  x_aug(6) = 0;
+  
+  // Q matrix
+  MatrixXd Q(2, 2);
+  Q << (std_a_ * std_a_), 0.0, 0.0, (std_yawdd_ * std_yawdd_);
+  
+  // Build the P_aug matrix
+  P_aug.fill(0.0);
+  P_aug.topLeftCorner(n_x_, n_x_) = P_;
+  P_aug.bottomRightCorner(2, 2) = Q;
+  
+  // Create square root matrix
+  MatrixXd A_aug = P_aug.llt().matrixL();
+  
+  // Generate the Augmented sigma points
+  
+  // First block of one col in the matrix
+  Xsig_aug.col(0) = x_aug;
+  
+  for (int ix = 0; ix < n_aug_; ++ix) {
+    // Second block of n_x_ cols in the matrix
+    Xsig_aug.col(ix + 1) = x_aug + sqrt(lambda_ + n_aug_) * A_aug.col(ix);
+    
+    // Third block of n_x_ cols in the matrix
+    Xsig_aug.col(ix + 1 + n_aug_) =
+      x_aug - sqrt(lambda_ + n_aug_) * A_aug.col(ix);
+  }
+  
+  // Predict sigma points
+  for (int ix = 0; ix < (2 * n_aug_ + 1); ix++) {
+    double px = Xsig_aug(0, ix);
+    double py = Xsig_aug(1, ix);
+    double v = Xsig_aug(2, ix);
+    double psi = Xsig_aug(3, ix);
+    double psi_d = Xsig_aug(4, ix);
+    double nu_a = Xsig_aug(5, ix);
+    double nu_psi_dd = Xsig_aug(6, ix);
+    
+    // Avoid division by zero
+    if (fabs(psi_d) < 0.0001) {
+      px += v * cos(psi) * dt;
+      py += v * sin(psi) * dt;
+    } else {
+      px += (v / psi_d) * (sin(psi + psi_d * dt) - sin(psi));
+      py += (v / psi_d) * (-cos(psi + psi_d * dt) + cos(psi));
+    }
+    px += 0.5 * dt_2 * cos(psi) * nu_a;
+    py += 0.5 * dt_2 * sin(psi) * nu_a;
+    
+    v += 0.0 + dt * nu_a;
+    psi += psi_d * dt + 0.5 * dt_2 * nu_psi_dd;
+    psi_d += 0.0 + dt * nu_psi_dd;
+    
+    Xsig_pred_(0, ix) = px;
+    Xsig_pred_(1, ix) = py;
+    Xsig_pred_(2, ix) = v;
+    Xsig_pred_(3, ix) = psi;
+    Xsig_pred_(4, ix) = psi_d;
+  }
+  
+  // Predicted state mean
+  x_.fill(0.0);
+  for (int ix = 0; ix < (2 * n_aug_ + 1); ++ix) {
+    x_ += weights_(ix) * Xsig_pred_.col(ix);
+  }
+  
+  // Predicted state covariance matrix
+  P_.fill(0.0);
+  for (int ix = 0; ix < (2 * n_aug_ + 1); ++ix) {
+    VectorXd x_diff = Xsig_pred_.col(ix) - x_;
+    // TODO: Replace with the Tools:normalizeAngle method
+    while (x_diff(3) > M_PI) { x_diff(3) -= 2.0 * M_PI; }
+    while (x_diff(3) < -M_PI) { x_diff(3) += 2.0 * M_PI; }
+    P_ += weights_(ix) * x_diff * x_diff.transpose();
+  }
 }
 
 /**
