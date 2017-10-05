@@ -10,6 +10,7 @@
 
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
+using std::vector;
 
 class UKF {
 public:
@@ -57,6 +58,9 @@ public:
   ///* Augmented state dimension
   int n_aug_;
 
+  ///* Number of sigma points
+  int n_sig_;
+  
   ///* Sigma point spreading parameter
   double lambda_;
 
@@ -88,6 +92,18 @@ public:
   ///* Lidar measuremenr noise R
   MatrixXd R_lidar_;
   
+  // Radar Normalized Innovation Squared (NIS)
+  VectorXd NIS_radar_;
+  int NIS_radar_cntr_;
+  int NIS_radar_over_;
+  int timesteps;
+  
+  // Lidar Normalized Innovation Squared (NIS)
+  VectorXd NIS_lidar_;
+  int NIS_lidar_cntr_;
+  int NIS_lidar_over_;
+  
+  ///* Object for using the helper functions
   Tools tools;
   
   /**
