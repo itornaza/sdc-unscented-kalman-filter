@@ -17,7 +17,7 @@ UKF::UKF() {
   is_initialized_ = false;
   
   // If this is false, laser measurements will be ignored (except during init)
-  use_laser_ = true;
+  use_laser_ = false;
 
   // If this is false, radar measurements will be ignored (except during init)
   use_radar_ = true;
@@ -32,9 +32,6 @@ UKF::UKF() {
         0, 0, 1, 0, 0,
         0, 0, 0, 1, 0,
         0, 0, 0, 0, 1;
-
-  // Initialize predicted sigma points matrix
-  Xsig_pred_ = MatrixXd(n_x_, 2 * n_aug_ + 1);
   
   // Process noise standard deviation longitudinal acceleration in m/s^2
   std_a_ = 30;
@@ -58,22 +55,25 @@ UKF::UKF() {
   std_radrd_ = 0.3;
   
   // State dimension
-  int n_x_ = 5;
+  n_x_ = 5;
   
   // Augmented state dimension
-  int n_aug_ = 7;
+  n_aug_ = 7;
   
   // Sigma point spreading parameter
-  double lambda_ = 3 - n_aug_;
+  lambda_ = 3 - n_aug_;
   
   // Set vector for weights
-  VectorXd weights_ = VectorXd(2 * n_aug_ + 1);
+  weights_ = VectorXd(2 * n_aug_ + 1);
   
   // Initialize the weights
   weights_(0) = lambda_ / (lambda_ + n_aug_);
   for (int ix = 1; ix < (2 * n_aug_ + 1); ++ix) {
     weights_(ix) = 1.0 / (2.0 * (lambda_ + n_aug_));
   }
+  
+  // Initialize predicted sigma points matrix
+  Xsig_pred_ = MatrixXd(n_x_, 2 * n_aug_ + 1);
 }
 
 UKF::~UKF() {}
@@ -199,19 +199,9 @@ void UKF::Prediction(double delta_t) {
   // Sigma point matrix
   MatrixXd Xsig_aug = MatrixXd(n_aug_, 2 * n_aug_ + 1);
   
-  if (DEBUG) { cout << " x_ : " << x_.rows() << " x " << x_.cols() << endl; }
-  if (DEBUG) {
-    cout << " x_aug : " << x_aug.rows() << " x " << x_aug.cols() << endl;
-  }
-  if (DEBUG) {
-    cout << " P_aug : " << P_aug.rows() << " x " << P_aug.cols() << endl;
-  }
-  
   // Augmented mean state
   x_aug.fill(0.0);
-  if (DEBUG) { cout << " -> UKF::Prediction -- 1" << endl; }
   x_aug.head(n_x_) = x_;
-  if (DEBUG) { cout << " -> UKF::Prediction -- 2" << endl; }
   
   // Q matrix
   MatrixXd Q(2, 2);
