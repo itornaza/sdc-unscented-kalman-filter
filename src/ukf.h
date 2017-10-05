@@ -6,6 +6,7 @@
 #include <vector>
 #include <string>
 #include <fstream>
+#include "tools.h"
 
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
@@ -86,6 +87,8 @@ public:
   
   ///* Lidar measuremenr noise R
   MatrixXd R_lidar_;
+  
+  Tools tools;
   
   /**
    * Constructor
