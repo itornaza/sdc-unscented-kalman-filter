@@ -67,6 +67,18 @@ public:
   ///* Sigma point spreading parameter
   double lambda_;
 
+  ///* Radar measurement space dimension
+  int n_z_radar_;
+  
+  ///* Lidar measurement space dimension
+  int n_z_lidar_;
+  
+  ///* Radar measuremenr noise R
+  MatrixXd R_radar_;
+  
+  ///* Lidar measuremenr noise R
+  MatrixXd R_lidar_;
+  
   /**
    * Constructor
    */
