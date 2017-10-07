@@ -418,8 +418,24 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
   x_ += K * z_diff;
   P_ -= K * S * K.transpose();
   
-  // TODO: Calculate lidar NIS
+  //----------------------
+  // Calculate NIS
+  //----------------------
+  
+  // Calculate the NIS and keep track of outliers from the 5% line
+  NIS_lidar_(NIS_lidar_cntr_) = tools.CalculateNIS(z_diff, S);
+  if (NIS_lidar_(NIS_lidar_cntr_) > NIS_LIDAR_5_PERCENT) {
+    ++NIS_lidar_over_;
+  }
+  
+  // Update counters for next itteration
+  ++NIS_lidar_cntr_;
   ++timesteps;
+  
+  if (DEBUG){
+    tools.ReportNIS(timesteps, NIS_lidar_over_, NIS_lidar_cntr_,
+                    NIS_radar_over_, NIS_radar_cntr_);
+  }
 }
 
 /**
@@ -515,17 +531,22 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
   x_ += K * z_diff;
   P_ -= K * S * K.transpose();
   
-  // TODO: Calculate radar NIS
-  NIS_radar_(NIS_radar_cntr_) = (z_diff.transpose() * S.inverse() * z_diff);
-  if (NIS_radar_(NIS_radar_cntr_) > 7.8) {
+  //----------------------
+  // Calculate radar NIS
+  //----------------------
+  
+  // Calculate the NIS and keep track of outliers from the 5% line
+  NIS_radar_(NIS_radar_cntr_) = tools.CalculateNIS(z_diff, S);
+  if (NIS_radar_(NIS_radar_cntr_) > NIS_RADAR_5_PERCENT) {
     ++NIS_radar_over_;
-    cout << NIS_radar_over_ << " out of " << NIS_radar_cntr_ << endl;
   }
+  
+  // Update counters for next itteration
   ++NIS_radar_cntr_;
   ++timesteps;
   
-  if (timesteps >= 490) {
-    cout << NIS_radar_over_ << " out of " << NIS_radar_cntr_ << endl;
+  if (DEBUG) {
+    tools.ReportNIS(timesteps, NIS_lidar_over_, NIS_lidar_cntr_,
+                    NIS_radar_over_, NIS_radar_cntr_);
   }
-  
 }

@@ -43,3 +43,20 @@ void Tools::normalizeAngle(double &angle) {
   while (angle > M_PI) { angle -= 2.0 * M_PI; }
   while (angle < -M_PI) { angle += 2.0 * M_PI; }
 }
+
+float Tools::CalculateNIS(const VectorXd &z_diff, const MatrixXd &S) {
+  return z_diff.transpose() * S.inverse() * z_diff;
+}
+
+void Tools::ReportNIS(int timesteps, int NIS_lidar_over, int NIS_lidar_cntr,
+                      int NIS_radar_over, int NIS_radar_cntr) {
+  if (timesteps >= 498) {
+    cout << "NIS report:" << endl;
+    cout  << "-> Lidar outliers: "
+    << 100.0 * static_cast<float>(NIS_lidar_over) / NIS_lidar_cntr
+    << "%" << endl;
+    cout  << "-> Radar outliers: "
+    << 100.0 * static_cast<float>(NIS_radar_over) / NIS_radar_cntr
+    << "%" << endl;
+  }
+}
